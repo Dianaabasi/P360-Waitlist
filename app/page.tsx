@@ -211,7 +211,7 @@ export default function WaitlistPage() {
 
         {/* 5. FOOTER */}
         <footer className="mt-24 text-center border-t border-slate-200 pt-8 text-slate-500 text-sm">
-          <p>© 2025 PW360. Built for the Next Billion.</p>
+          <p>© 2026 PW360. Built for the Next Billion.</p>
         </footer>
 
       </div>
