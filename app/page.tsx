@@ -334,6 +334,7 @@ export default function WaitlistPage() {
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
+      setIsModalOpen(false); // Close modal on success
     } catch (error) {
       console.error("Login Failed:", error);
     }
