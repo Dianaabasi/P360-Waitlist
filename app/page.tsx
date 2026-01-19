@@ -244,19 +244,31 @@ import {
   getCountFromServer // Added for stats
 } from 'firebase/firestore';
 import { db, auth, googleProvider } from '@/lib/firebase';
-import { Loader2, Copy, Share2, Trophy, Users, Star, CheckCircle2, LogOut, X, User as UserIcon } from 'lucide-react';
+import { Loader2, Copy, Share2, Trophy, Users, Star, CheckCircle2, LogOut, X, User as UserIcon, ExternalLink } from 'lucide-react';
 
-// --- Types ---
 interface UserData {
   uid: string;
   displayName: string;
   email: string;
   photoURL: string;
   referralCode: string;
-  referredBy?: string | null; // CHANGED: Allow null
+  referredBy?: string | null;
   points: number;
   referralCount: number;
+  createdAt?: any; // Firestore Timestamp
 }
+
+type TabType = 'leaderboard' | 'quests';
+
+// Helper to mask email: "ahb****@gmail.com"
+const maskEmail = (email: string): string => {
+  if (!email) return '****';
+  const [localPart, domain] = email.split('@');
+  if (!domain) return '****';
+  const visibleChars = Math.min(3, localPart.length);
+  const masked = localPart.slice(0, visibleChars) + '****';
+  return `${masked}@${domain}`;
+};
 
 export default function WaitlistPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -264,9 +276,10 @@ export default function WaitlistPage() {
   const [leaderboard, setLeaderboard] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(true); // New state for specific loading
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [stats, setStats] = useState({ peopleAhead: 0, totalUsers: 0 });
+  const [activeTab, setActiveTab] = useState<TabType>('leaderboard');
 
   // --- 1. LOGIC: Auth & Data Fetching ---
   useEffect(() => {
@@ -290,8 +303,13 @@ export default function WaitlistPage() {
       setLoading(false);
     });
 
-    // C. Leaderboard Listener (Real-time)
-    const q = query(collection(db, "users"), orderBy("points", "desc"), limit(10)); // CHANGED: Limit 10
+    // C. Leaderboard Listener (Real-time) - Sort by points DESC, then createdAt ASC (earlier = higher rank)
+    const q = query(
+      collection(db, "users"), 
+      orderBy("points", "desc"), 
+      orderBy("createdAt", "asc"), 
+      limit(10)
+    );
     const unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
       const users = snapshot.docs.map(doc => doc.data() as UserData);
       setLeaderboard(users);
@@ -306,7 +324,7 @@ export default function WaitlistPage() {
 
   // --- 1.5. LOGIC: Stats Fetching ---
   useEffect(() => {
-    if (!userData) return;
+    if (!userData || userData.points === undefined) return;
     
     const fetchStats = async () => {
         try {
@@ -314,12 +332,24 @@ export default function WaitlistPage() {
             const qAhead = query(collection(db, "users"), where("points", ">", userData.points));
             const snapshotAhead = await getCountFromServer(qAhead);
             
+            // Count people with SAME points but joined BEFORE current user (they rank higher)
+            let samePointsAhead = 0;
+            if (userData.createdAt) {
+              const qSamePoints = query(
+                collection(db, "users"), 
+                where("points", "==", userData.points),
+                where("createdAt", "<", userData.createdAt)
+              );
+              const snapshotSame = await getCountFromServer(qSamePoints);
+              samePointsAhead = snapshotSame.data().count;
+            }
+            
             // Count total users
             const coll = collection(db, "users");
             const snapshotTotal = await getCountFromServer(coll);
 
             setStats({
-                peopleAhead: snapshotAhead.data().count,
+                peopleAhead: snapshotAhead.data().count + samePointsAhead,
                 totalUsers: snapshotTotal.data().count
             });
         } catch (error) {
@@ -328,7 +358,7 @@ export default function WaitlistPage() {
     };
     
     fetchStats();
-  }, [userData?.points]); // Re-run if user's points change
+  }, [userData?.points, userData?.createdAt]);
 
   // --- 2. LOGIC: User Actions ---
   const handleGoogleLogin = async () => {
@@ -568,118 +598,211 @@ export default function WaitlistPage() {
                 </div>
               </div>
 
-              {/* Right: Leaderboard */}
+              {/* Right: Leaderboard / Quests */}
               <div className="bg-white/80 backdrop-blur-xl border border-white/60 p-5 md:p-8 rounded-[2.5rem] shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <Trophy className="text-yellow-500" /> Leaderboard
-                  </h2>
-                  <span className="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-lg">LIVE</span>
+                {/* Tab Switcher */}
+                <div className="flex items-center justify-center mb-6">
+                  <div className="inline-flex bg-slate-100 rounded-full p-1">
+                    <button
+                      onClick={() => setActiveTab('leaderboard')}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                        activeTab === 'leaderboard' 
+                          ? 'bg-white text-blue-600 shadow-sm' 
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Leaderboard
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('quests')}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition-all relative ${
+                        activeTab === 'quests' 
+                          ? 'bg-white text-blue-600 shadow-sm' 
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Quests
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></span>
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-3">
-                  {/* Loading State */}
-                  {leaderboardLoading && (
-                     <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
-                        <Loader2 className="animate-spin text-blue-500" />
-                        <span className="text-sm">Refreshing ranks...</span>
-                     </div>
-                  )}
 
-                  {/* Empty State */}
-                  {!leaderboardLoading && leaderboard.length === 0 && (
-                     <div className="text-center py-10 text-slate-400">
-                        <p>No players yet. Be the first!</p>
-                     </div>
-                  )}
-
-                  {/* List Container */}
+                {/* TAB CONTENT */}
+                {activeTab === 'leaderboard' ? (
+                  /* LEADERBOARD TAB */
                   <div className="space-y-3">
-                    {/* PINNED USER ROW (If not in Top 10) */}
-                    {!leaderboardLoading && user && !leaderboard.find(u => u.uid === user.uid) && userData && (
-                      <div className="flex items-center justify-between p-3 rounded-2xl border bg-blue-50 border-blue-200 mb-4 shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-slate-200 text-slate-700">
-                             {/* Calculated Rank would be complex to get real-time without index, showing "-" for now or we rely on stats.peopleAhead + 1 */}
-                             {(stats.peopleAhead + 1).toLocaleString()}
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden relative">
-                             {userData.photoURL ? (
-                               <img 
-                                 src={userData.photoURL} 
-                                 alt="You" 
-                                 className="w-full h-full object-cover"
-                               />
-                             ) : (
+                    {/* Loading State */}
+                    {leaderboardLoading && (
+                       <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
+                          <Loader2 className="animate-spin text-blue-500" />
+                          <span className="text-sm">Refreshing ranks...</span>
+                       </div>
+                    )}
+
+                    {/* Empty State */}
+                    {!leaderboardLoading && leaderboard.length === 0 && (
+                       <div className="text-center py-10 text-slate-400">
+                          <p>No players yet. Be the first!</p>
+                       </div>
+                    )}
+
+                    {/* List Container */}
+                    <div className="space-y-3">
+                      {/* PINNED USER ROW (If not in Top 10) */}
+                      {!leaderboardLoading && user && !leaderboard.find(u => u.uid === user.uid) && userData && (
+                        <div className="flex items-center justify-between p-3 rounded-2xl border bg-blue-50 border-blue-200 mb-4 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm bg-slate-200 text-slate-700">
+                               {(stats.peopleAhead + 1).toLocaleString()}
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden relative">
                                <img 
                                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userData.uid}`} 
                                  alt="avatar" 
                                  className="w-full h-full object-cover"
                                />
-                             )}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900 text-sm">You</p>
-                            <p className="text-xs text-slate-400">{userData.points} Points</p>
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-900 text-sm">You</p>
+                              <p className="text-xs text-slate-400">{userData.points} Points</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Scrollable Leaderboard (Max height ~ 5 items) */}
-                    <div className="max-h-[320px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                      {!leaderboardLoading && leaderboard.map((player, index) => (
-                        <div key={player.uid} className={`flex items-center justify-between p-3 rounded-2xl border ${player.uid === user.uid ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-100'}`}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm min-w-8 ${
-                              index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                              index === 1 ? 'bg-slate-200 text-slate-700' :
-                              index === 2 ? 'bg-orange-100 text-orange-700' :
-                              'bg-slate-50 text-slate-500'
-                            }`}>
-                              {index + 1}
-                            </div>
-                            {/* Avatar Fallback Logic */}
-                            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden relative min-w-10">
-                              {player.photoURL ? (
-                                <img 
-                                  src={player.photoURL} 
-                                  alt={player.displayName} 
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.uid}`;
-                                  }}
-                                />
-                              ) : (
+                      {/* Scrollable Leaderboard (Max height ~ 5 items) */}
+                      <div className="max-h-[320px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                        {!leaderboardLoading && leaderboard.map((player, index) => (
+                          <div key={player.uid} className={`flex items-center justify-between p-3 rounded-2xl border ${player.uid === user.uid ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-100'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm min-w-8 ${
+                                index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                index === 1 ? 'bg-slate-200 text-slate-700' :
+                                index === 2 ? 'bg-orange-100 text-orange-700' :
+                                'bg-slate-50 text-slate-500'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              {/* Avatar - Always Dicebear */}
+                              <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden relative min-w-10">
                                 <img 
                                   src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${player.uid}`} 
                                   alt="avatar" 
                                   className="w-full h-full object-cover"
                                 />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900 text-sm truncate max-w-[120px]">
-                                {player.uid === user.uid ? "You" : player.displayName}
-                              </p>
-                              <p className="text-xs text-slate-400">{player.points} Points</p>
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 text-sm truncate max-w-[120px]">
+                                  {player.uid === user.uid ? "You" : maskEmail(player.email)}
+                                </p>
+                                <p className="text-xs text-slate-400">{player.points} Points</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* People Ahead Stats Card (COMPACT) */}
+                    <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-200 text-center">
+                      <p className="text-2xl font-extrabold text-slate-900 mb-0 font-serif">
+                         {stats.peopleAhead.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-slate-900 font-medium mb-1">people ahead of you.</p>
+                      <p className="text-xs text-slate-500">
+                         {stats.totalUsers > 0 ? (stats.totalUsers - 1).toLocaleString() : 0} others on the waitlist.
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* People Ahead Stats Card (COMPACT) */}
-                  <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-200 text-center">
-                    <p className="text-2xl font-extrabold text-slate-900 mb-0 font-serif">
-                       {stats.peopleAhead.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-slate-900 font-medium mb-1">people ahead of you.</p>
-                    <p className="text-xs text-slate-500">
-                       {stats.totalUsers > 0 ? (stats.totalUsers - 1).toLocaleString() : 0} others on the waitlist.
-                    </p>
+                ) : (
+                  /* QUESTS TAB */
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-500 text-center mb-4">Complete quests to earn extra points!</p>
+                    
+                    {/* Quest: Follow on X */}
+                    <a 
+                      href="https://x.com/thepw3acad" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">Follow on X</p>
+                          <p className="text-xs text-slate-400">@thepw3acad</p>
+                        </div>
+                      </div>
+                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                    </a>
+
+                    {/* Quest: Join Telegram */}
+                    <a 
+                      href="https://t.me/profunda" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">Join TG Community</p>
+                          <p className="text-xs text-slate-400">t.me/profunda</p>
+                        </div>
+                      </div>
+                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                    </a>
+
+                    {/* Quest: Follow on Instagram */}
+                    <a 
+                      href="https://www.instagram.com/thepw3acad?igsh=eGJrcXYwYTNqazkz" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center text-white">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">Follow on Instagram</p>
+                          <p className="text-xs text-slate-400">@thepw3acad</p>
+                        </div>
+                      </div>
+                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                    </a>
+
+                    {/* Quest: Invite a Friend */}
+                    <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white">
+                          <Users size={20} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">Invite a Friend</p>
+                          <p className="text-xs text-slate-400">+10 points per referral</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={copyToClipboard}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2"
+                      >
+                        {copySuccess ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+                        {copySuccess ? "Copied!" : "Copy Link"}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
