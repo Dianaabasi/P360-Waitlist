@@ -534,7 +534,7 @@ export default function WaitlistPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">Join TG Community</p>
-                          <p className="text-xs text-slate-400">t.me/profunda</p>
+                          <p className="text-xs text-slate-400">t.me/pw360_channel</p>
                         </div>
                       </div>
                       <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
