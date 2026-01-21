@@ -110,17 +110,30 @@ export default function WaitlistPage() {
             // Count people with MORE points than current user
             const qAhead = query(collection(db, "users"), where("points", ">", userData.points));
             const snapshotAhead = await getCountFromServer(qAhead);
+            const morePointsCount = snapshotAhead.data().count;
             
-            // Count people with SAME points but joined BEFORE current user (they rank higher)
+            // Count people with SAME points but joined BEFORE current user
+            // We need to fetch all users with same points and filter client-side
             let samePointsAhead = 0;
             if (userData.createdAt) {
               const qSamePoints = query(
                 collection(db, "users"), 
-                where("points", "==", userData.points),
-                where("createdAt", "<", userData.createdAt)
+                where("points", "==", userData.points)
               );
-              const snapshotSame = await getCountFromServer(qSamePoints);
-              samePointsAhead = snapshotSame.data().count;
+              const samePointsSnapshot = await getDocs(qSamePoints);
+              
+              // Client-side filter: count users who joined before current user
+              samePointsSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                // Skip self
+                if (data.uid === userData.uid) return;
+                // Compare createdAt timestamps
+                if (data.createdAt && userData.createdAt) {
+                  if (data.createdAt.toMillis() < userData.createdAt.toMillis()) {
+                    samePointsAhead++;
+                  }
+                }
+              });
             }
             
             // Count total users
@@ -128,7 +141,7 @@ export default function WaitlistPage() {
             const snapshotTotal = await getCountFromServer(coll);
 
             setStats({
-                peopleAhead: snapshotAhead.data().count + samePointsAhead,
+                peopleAhead: morePointsCount + samePointsAhead,
                 totalUsers: snapshotTotal.data().count
             });
         } catch (error) {
@@ -189,7 +202,13 @@ export default function WaitlistPage() {
         createdAt: serverTimestamp() 
       });
       
-      setUserData(newUser);
+      // Re-fetch to get the server-generated createdAt timestamp
+      const createdSnap = await getDoc(userRef);
+      if (createdSnap.exists()) {
+        setUserData(createdSnap.data() as UserData);
+      } else {
+        setUserData(newUser);
+      }
 
       // Award referral points if applicable
       if (storedRef) await awardReferrerPoints(storedRef);
