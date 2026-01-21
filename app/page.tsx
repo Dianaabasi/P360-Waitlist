@@ -515,7 +515,7 @@ export default function WaitlistPage() {
                 ) : (
                   /* QUESTS TAB */
                   <div className="space-y-4">
-                    <p className="text-sm text-slate-500 text-center mb-4">Complete quests to earn extra points!</p>
+                    <p className="text-sm text-slate-500 text-center mb-4">Complete quests while waiting!</p>
                     
                     {/* Quest: Follow on X */}
                     <a 
