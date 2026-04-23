@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://Thepw3academy.net/waitlist"),
   title: "PW360 - Profunda Web3 Academy | Learn Web3, DeFi & Blockchain",
   description: "Break into Web3 with one subscription. Master DeFi, Development, and Marketing at your own pace. Join 2,400+ students on the waitlist for early access.",
   keywords: ["Web3", "DeFi", "Blockchain", "Crypto", "Education", "Online Learning", "Web3 Academy", "Cryptocurrency", "Smart Contracts"],
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://pw360.io",
+    url: "https://Thepw3academy.net/waitlist",
     siteName: "PW360 - Profunda Web3 Academy",
     title: "PW360 - Learn Web3, DeFi & Blockchain",
     description: "Break into Web3 with one subscription. Master DeFi, Development, and Marketing at your own pace. Join the waitlist for early access.",
