@@ -540,7 +540,7 @@ export default function WaitlistPage() {
 
                     {/* Quest: Join Telegram */}
                     <a 
-                      href="https://t.me/pw360_channel" 
+                      href="https://t.me/pw360_official" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
@@ -553,7 +553,7 @@ export default function WaitlistPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">Join TG Community</p>
-                          <p className="text-xs text-slate-400">t.me/pw360_channel</p>
+                          <p className="text-xs text-slate-400">t.me/pw360_official</p>
                         </div>
                       </div>
                       <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
