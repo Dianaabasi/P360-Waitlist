@@ -580,6 +580,27 @@ export default function WaitlistPage() {
                       <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
                     </a>
 
+                    {/* Quest: Follow on TikTok */}
+                    <a 
+                      href="https://www.tiktok.com/@pw360.academy?_r=1&_t=ZS-96UXuYHPVGT" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.77 0 2.89 2.89 0 0 1 2.5-2.87V9.75a6.34 6.34 0 0 0-2.5 12.28 6.34 6.34 0 0 0 6.34-6.34V6.5a8.23 8.23 0 0 0 5.45 2.11v-3.45z"/>
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">Follow on TikTok</p>
+                          <p className="text-xs text-slate-400">@pw360.academy</p>
+                        </div>
+                      </div>
+                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                    </a>
+
                     {/* Quest: Invite a Friend */}
                     <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white">
                       <div className="flex items-center gap-3">
