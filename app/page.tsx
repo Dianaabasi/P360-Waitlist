@@ -20,7 +20,8 @@ import {
   onSnapshot, 
   serverTimestamp,
   updateDoc,
-  getCountFromServer // Added for stats
+  getCountFromServer, // Added for stats
+  arrayUnion
 } from 'firebase/firestore';
 import { db, auth, googleProvider } from '@/lib/firebase';
 import { Loader2, Copy, Share2, Trophy, Users, Star, CheckCircle2, LogOut, X, User as UserIcon, ExternalLink } from 'lucide-react';
@@ -35,6 +36,7 @@ interface UserData {
   points: number;
   referralCount: number;
   createdAt?: any; // Firestore Timestamp
+  completedQuests?: string[];
 }
 
 type TabType = 'leaderboard' | 'quests';
@@ -246,6 +248,32 @@ export default function WaitlistPage() {
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const completeQuest = async (questId: string) => {
+    if (!user || !userData) return;
+    const completedQuests = userData.completedQuests || [];
+    if (completedQuests.includes(questId)) return;
+
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        points: increment(5),
+        completedQuests: arrayUnion(questId)
+      });
+
+      // Update local state immediately for snappy UX
+      setUserData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          points: (prev.points || 0) + 5,
+          completedQuests: [...(prev.completedQuests || []), questId]
+        };
+      });
+    } catch (error) {
+      console.error("Error completing quest:", error);
+    }
+  };
+
   // --- 3. RENDER ---
   return (
     <div className="min-h-screen bg-[#F0F4FF] text-slate-800 overflow-x-hidden font-sans selection:bg-blue-200">
@@ -374,6 +402,7 @@ export default function WaitlistPage() {
                   <ul className="text-sm text-slate-600 space-y-3">
                     <li className="flex gap-2 items-center"><span className="text-lg">🎯</span> <strong>100 Points</strong> for joining</li>
                     <li className="flex gap-2 items-center"><span className="text-lg">🚀</span> <strong>10 Points</strong> per referral</li>
+                    <li className="flex gap-2 items-center"><span className="text-lg">✨</span> <strong>5 Points</strong> per quest completed</li>
                   </ul>
                 </div>
 
@@ -522,7 +551,12 @@ export default function WaitlistPage() {
                       href="https://x.com/thepw3acad" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                      onClick={() => completeQuest('follow_x')}
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group ${
+                        userData?.completedQuests?.includes('follow_x')
+                          ? 'bg-green-50/50 border-green-200'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white">
@@ -531,11 +565,26 @@ export default function WaitlistPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">Follow on X</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">Follow on X</p>
+                            {userData?.completedQuests?.includes('follow_x') ? (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <CheckCircle2 size={10} /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                +5 Pts
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-400">@thepw3acad</p>
                         </div>
                       </div>
-                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                      <ExternalLink size={18} className={`transition-colors ${
+                        userData?.completedQuests?.includes('follow_x')
+                          ? 'text-green-500'
+                          : 'text-slate-400 group-hover:text-blue-500'
+                      }`} />
                     </a>
 
                     {/* Quest: Join Telegram */}
@@ -543,7 +592,12 @@ export default function WaitlistPage() {
                       href="https://t.me/pw360_official" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                      onClick={() => completeQuest('join_tg')}
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group ${
+                        userData?.completedQuests?.includes('join_tg')
+                          ? 'bg-green-50/50 border-green-200'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
@@ -552,11 +606,26 @@ export default function WaitlistPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">Join TG Community</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">Join TG Community</p>
+                            {userData?.completedQuests?.includes('join_tg') ? (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <CheckCircle2 size={10} /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                +5 Pts
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-400">t.me/pw360_official</p>
                         </div>
                       </div>
-                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                      <ExternalLink size={18} className={`transition-colors ${
+                        userData?.completedQuests?.includes('join_tg')
+                          ? 'text-green-500'
+                          : 'text-slate-400 group-hover:text-blue-500'
+                      }`} />
                     </a>
 
                     {/* Quest: Follow on Instagram */}
@@ -564,7 +633,12 @@ export default function WaitlistPage() {
                       href="https://www.instagram.com/thepw3acad?igsh=eGJrcXYwYTNqazkz" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                      onClick={() => completeQuest('follow_instagram')}
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group ${
+                        userData?.completedQuests?.includes('follow_instagram')
+                          ? 'bg-green-50/50 border-green-200'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center text-white">
@@ -573,11 +647,26 @@ export default function WaitlistPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">Follow on Instagram</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">Follow on Instagram</p>
+                            {userData?.completedQuests?.includes('follow_instagram') ? (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <CheckCircle2 size={10} /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                +5 Pts
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-400">@thepw3acad</p>
                         </div>
                       </div>
-                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                      <ExternalLink size={18} className={`transition-colors ${
+                        userData?.completedQuests?.includes('follow_instagram')
+                          ? 'text-green-500'
+                          : 'text-slate-400 group-hover:text-blue-500'
+                      }`} />
                     </a>
 
                     {/* Quest: Follow on TikTok */}
@@ -585,7 +674,12 @@ export default function WaitlistPage() {
                       href="https://www.tiktok.com/@pw360.academy?_r=1&_t=ZS-96UXuYHPVGT" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors group"
+                      onClick={() => completeQuest('follow_tiktok')}
+                      className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 group ${
+                        userData?.completedQuests?.includes('follow_tiktok')
+                          ? 'bg-green-50/50 border-green-200'
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center text-white">
@@ -594,11 +688,26 @@ export default function WaitlistPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">Follow on TikTok</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900">Follow on TikTok</p>
+                            {userData?.completedQuests?.includes('follow_tiktok') ? (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                <CheckCircle2 size={10} /> Completed
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                +5 Pts
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-400">@pw360.academy</p>
                         </div>
                       </div>
-                      <ExternalLink size={18} className="text-slate-400 group-hover:text-blue-500" />
+                      <ExternalLink size={18} className={`transition-colors ${
+                        userData?.completedQuests?.includes('follow_tiktok')
+                          ? 'text-green-500'
+                          : 'text-slate-400 group-hover:text-blue-500'
+                      }`} />
                     </a>
 
                     {/* Quest: Invite a Friend */}
