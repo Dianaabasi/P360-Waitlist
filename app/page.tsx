@@ -94,6 +94,20 @@ const QUESTS_DATA = [
     href: 'https://x.com/thepw3acad/status/2060271187129753747',
     iconType: 'x',
   },
+  {
+    id: 'x_engagement_3',
+    title: 'Like, Repost & Comment',
+    subtitle: 'Interact with our post on X',
+    href: 'https://x.com/i/status/2061360450197934258',
+    iconType: 'x',
+  },
+  {
+    id: 'x_engagement_4',
+    title: 'Like, Repost & Comment',
+    subtitle: 'Interact with our post on X',
+    href: 'https://x.com/i/status/2061473262081634602',
+    iconType: 'x',
+  },
 ];
 
 const renderQuestIcon = (iconType: string) => {
