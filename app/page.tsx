@@ -37,6 +37,7 @@ interface UserData {
   referralCount: number;
   createdAt?: any; // Firestore Timestamp
   completedQuests?: string[];
+  hasSharedOnX?: boolean;
 }
 
 type TabType = 'leaderboard' | 'quests';
@@ -352,6 +353,33 @@ export default function WaitlistPage() {
     const link = `${window.location.origin}?ref=${userData.referralCode}`;
     const text = `I just joined the waitlist for @thePW3acad - The Web3 Education Platform we've been waiting for! 🚀\n\nJoin me on the waitlist and earn points for a discounted subscription price:\n${link}`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCompulsoryShare = async () => {
+    if (!user || !userData) return;
+    
+    // Open X compose window
+    const link = `${window.location.origin}?ref=${userData.referralCode}`;
+    const text = `I just joined the waitlist for @thePW3acad - The Web3 Education Platform we've been waiting for! 🚀\n\nJoin me on the waitlist and earn points for a discounted subscription price:\n${link}`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        hasSharedOnX: true
+      });
+
+      // Update local state to immediately close the popup
+      setUserData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          hasSharedOnX: true
+        };
+      });
+    } catch (error) {
+      console.error("Error updating share status:", error);
+    }
   };
 
   const completeQuest = async (questId: string) => {
@@ -801,6 +829,43 @@ export default function WaitlistPage() {
                 We'll only use your email to hold your waitlist spot.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. COMPULSORY SHARE ON X MODAL/FLOATING SCREEN */}
+      {user && userData && !userData.hasSharedOnX && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" />
+          
+          {/* Modal Card */}
+          <div className="relative w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-2xl text-center space-y-6 animate-in fade-in zoom-in-95 duration-300">
+            {/* Header Icon */}
+            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+              <Share2 size={32} />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold text-slate-900">One Last Step! 🚀</h3>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                To secure your spot on the waitlist, share PW360 with your audience on X. Clicking below will draft a post with your unique referral link.
+              </p>
+            </div>
+
+            <button
+              onClick={handleCompulsoryShare}
+              className="w-full py-4 px-6 bg-black hover:bg-slate-900 text-white font-bold rounded-xl flex items-center justify-center gap-3 transition-colors shadow-lg"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Share on X & Continue
+            </button>
+
+            <p className="text-xs text-slate-400">
+              *Sharing unlocks your personalized dashboard and referral rank tracking.
+            </p>
           </div>
         </div>
       )}
