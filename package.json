@@ -6,10 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export-users": "node scripts/export-users.js"
   },
   "dependencies": {
     "firebase": "^12.8.0",
+    "firebase-admin": "^14.0.0",
     "lucide-react": "^0.562.0",
     "next": "16.1.2",
     "react": "19.2.3",

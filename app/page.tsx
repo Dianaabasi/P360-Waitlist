@@ -109,6 +109,27 @@ const QUESTS_DATA = [
     href: 'https://x.com/i/status/2061473262081634602',
     iconType: 'x',
   },
+  {
+    id: 'x_engagement_5',
+    title: 'Like, Repost & Comment',
+    subtitle: 'Interact with our post on X',
+    href: 'https://x.com/thePW3acad/status/2064335295500222927',
+    iconType: 'x',
+  },
+  {
+    id: 'x_engagement_6',
+    title: 'Like, Repost & Comment',
+    subtitle: 'Interact with our post on X',
+    href: 'https://x.com/thePW3acad/status/2064636641868751043',
+    iconType: 'x',
+  },
+  {
+    id: 'x_engagement_7',
+    title: 'Like, Repost & Comment',
+    subtitle: 'Interact with our post on X',
+    href: 'https://x.com/thePW3acad/status/2064725622484619556',
+    iconType: 'x',
+  },
 ];
 
 const renderQuestIcon = (iconType: string) => {
