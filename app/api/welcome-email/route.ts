@@ -221,17 +221,28 @@ export async function POST(request: Request) {
     // Note: If you verified thepw360.net, you can send emails from any prefix (e.g. hello@thepw360.net)
     // If you only verified the subdomain (waitlist.thepw360.net), you might need to send from something like hello@waitlist.thepw360.net
     const fromEmail = 'hello@thepw360.net';
-      
-    const data = await resend.emails.send({
+
+    // Diagnostic log: confirm API key is available at runtime
+    console.log('[welcome-email] RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
+    console.log('[welcome-email] Sending to:', email, '| From:', fromEmail);
+
+    const { data, error: resendError } = await resend.emails.send({
       from: `Profunda Web3 Academy <${fromEmail}>`,
       to: [email],
       subject: 'Welcome to PW360, a new learning era awaits',
       html: htmlContent,
     });
 
+    if (resendError) {
+      // Log the exact Resend error for debugging in Hostinger logs
+      console.error('[welcome-email] Resend API error:', JSON.stringify(resendError));
+      return NextResponse.json({ error: resendError }, { status: 500 });
+    }
+
+    console.log('[welcome-email] Email sent successfully. ID:', data?.id);
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('Error sending welcome email:', error);
+    console.error('[welcome-email] Unexpected error:', error);
     return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
   }
 }
