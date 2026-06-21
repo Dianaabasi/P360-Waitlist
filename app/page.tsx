@@ -331,6 +331,15 @@ export default function WaitlistPage() {
         ...newUser, 
         createdAt: serverTimestamp() 
       });
+
+      // --- SEND WELCOME EMAIL ---
+      if (newUser.email) {
+        fetch('/api/welcome-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: newUser.email, name: newUser.displayName }),
+        }).catch(err => console.error("Failed to trigger welcome email:", err));
+      }
       
       // Re-fetch to get the server-generated createdAt timestamp
       const createdSnap = await getDoc(userRef);

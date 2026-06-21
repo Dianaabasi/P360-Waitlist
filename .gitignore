@@ -44,3 +44,6 @@ next-env.d.ts
 scripts/*
 service-account.json
 users_export.csv
+
+# Email Preview
+email-preview.html
